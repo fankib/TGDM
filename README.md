@@ -13,7 +13,7 @@ Our approach is derived from hyperparameter optimization.
 
 ### Hyperparameter Optimization (HO):
 The general approach in HO is simple to describe: We take the whole optimization trace and differentiate it in respect of a hyperparamter. With this optained hypergradient we do then Gradient Descent on the hyperparameter and have Hyperparameter Optimization. Unfortunatly this is not feasible for neural networks.
-So we derived three different variants.
+So we derived three different approximations.
 
 ### Hyperdescent TGDM (HD-TGDM):
 This approach was invented by ... and does use two sequential minibatches to perform HO. Usage:
@@ -29,8 +29,8 @@ optimizer.init_random() # for random initialization of the hyperparameters
 
 for i in range(iters):
 	optimzier.zero_grad()
-	L = ... # compute loss with training data
-	L.backward()
+	C = ... # compute cost with training data
+	C.backward()
 	optimizer.step() # done!
 ```
 
@@ -44,14 +44,15 @@ optimizer = optim.T1T2_TGDM(model.parameters, ...)
 optimizer.init_random() # optional
 
 for i in range(iters):
+	# prepare HO
+	optimizer.hyper_zero_grad()
 	# single inner step:
 	optimizer.zero_grad()
-	L = ... # compute loss with training data
-	L.backward()
+	C = ... # compute cost with training data
+	C.backward()
 	optimizer.step()
 	# single HO step:
-	optimizer.hyper_zero_grad()
-	E = ... # compute loss with validation data
+	E = ... # compute cost with validation data
 	E.backward()
 	optimizer.hyper_step()
 ```
@@ -66,16 +67,17 @@ optimizer = optim.TGDM(model.parameters(), ...)
 optimizer.init_random() # optional
 
 for i in range(iters):
+	# prepare HO
+	optimizer.hyper_zero_grad()
 	# perform T-steps of the inner optimization
 	for t in range(T):
 		data_train, target_train = next(train_loader)
 		optimizer.zero_grad()
-		L = ... # compute loss with training data
-		L.backward()
+		C = ... # compute cost with training data
+		C.backward()
 		optimizer.step()
 	# followed by one HO step:
-	optimizer.hyper_zero_grad()
-	E = ... # compute loss with validation data
+	E = ... # compute cost with validation data
 	E.backward()
 	optimizer.hyper_step()
 ```
