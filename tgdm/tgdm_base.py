@@ -1,7 +1,7 @@
 
 import torch
 
-from optim.parametrized_value import ExpValue, SigmoidValue
+from .parametrized_value import ExpValue, SigmoidValue
 
 class Buffer():
     ''' Buffers in use for each parameter group '''    

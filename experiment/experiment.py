@@ -96,6 +96,10 @@ class ArgBuilder():
     def __init__(self):
         self.args = []
     
+    def group(self, arg):
+        self.args.append('--group {}'.format(arg))
+        return self
+    
     def gpu(self, arg):
         self.args.append('--gpu {}'.format(arg))
         return self
@@ -139,7 +143,7 @@ class Evaluator():
             procs = queue.Queue()
             for i in range(self.jobs):
                 args = self.commands.get()
-                cmd = 'python -u {} --silent {}'.format(self.script, args)                
+                cmd = 'python -u {} {}'.format(self.script, args)                
                 cmds = shlex.split(cmd)
                 print('run using {}'.format(args))
                 p = subprocess.Popen(cmds, stdout=subprocess.PIPE)

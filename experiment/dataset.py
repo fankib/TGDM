@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from torchvision import datasets, transforms
 
-from experiment.dataset_birds import DatasetBirds
+from dataset_birds import DatasetBirds
 
 class Dataset():
     

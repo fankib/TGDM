@@ -1,6 +1,14 @@
 # Tuned Gradient Descent with Momentum
 (Code repositoy for the Master Thesis of Benjamin)
 
+## Usage
+To use the experiments install the package localy:
+
+```bash
+pip install -e .
+```
+
+
 ## Gradient Descent with Momentum and Regularization
 Gradient Descent with Momentum (GDM) is in general use for training
 neural networks. The following hyperparameters have either to be set or

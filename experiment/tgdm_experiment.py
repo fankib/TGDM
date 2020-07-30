@@ -1,24 +1,22 @@
 
+import os
+
+print(os.getcwd())
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-import torchvision
 import numpy as np
 
 import matplotlib.pyplot as plt
 import argparse
-import gc
-import sys
-import time
-import math
 
-from experiment.dataset import Dataset
-from experiment.network import ResnetClassifier, evaluate
-from experiment.experiment import local_machine, Logger
+from experiment import local_machine, Logger
+from dataset import Dataset
+from network import ResnetClassifier
 
-from optim.tgdm import TGDM
-from optim.regularization import RegularizationFactory
-
+from tgdm import TGDM
+from tgdm.regularization import RegularizationFactory
 
 ''' fix seed '''
 if local_machine():
@@ -71,7 +69,8 @@ model = ResnetClassifier(args.architecture, dataset.n_classes(), pretrained).to(
 
 ''' train loop '''
 regulation = RegularizationFactory().by_name(args.regulation)
-optimizer = TGDM(model.parameters(), {'hyper_learning_rate': 0.01, 'lr': 0.01, 'momentum': 0.8, 'regularization': 0.1}, regulation, logger)
+defaults = {'hyper_learning_rate': [args.hlr_lr, args.hlr_momentum, args.hlr_regularization], 'lr': args.lr, 'momentum': args.momentum, 'regularization': args.regularization}
+optimizer = TGDM(model.parameters(), defaults, regulation, logger)
 valid_iterator = None
 train_iterator = None
 train_available = 0
