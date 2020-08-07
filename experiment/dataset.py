@@ -36,8 +36,7 @@ class Dataset():
         # init trainig dataset according to train_split:
         train_data = self.load_train_data()        
         train_len = len(train_data)
-        indices = np.arange(train_len)
-        np.random.shuffle(indices)
+        indices = self.fix_permutation(train_len)       
         ind_train_split = int(self.train_split*train_len)
         ind_valid_split = int(self.valid_split*train_len)
         train_indices = indices[:ind_train_split] # only use xx% of train data
@@ -49,12 +48,27 @@ class Dataset():
         
         # init test dataset (without data augmentation)
         test_data = self.load_test_data()
-        test_loader = torch.utils.data.DataLoader(test_data, batch_size=self.batch_size, shuffle=True) # shuffle for no patterns
+        test_loader = torch.utils.data.DataLoader(test_data, batch_size=self.batch_size, shuffle=True)
         
         # log
         print('Use {} batches for training, {} batches for validation and {} batches for testing.'.format(int(len(train_subdata)/self.batch_size), int(len(valid_subdata)/self.batch_size), int(len(test_data)/self.batch_size)))
         
         return (train_loader, valid_loader, test_loader)
+    
+    def fix_permutation(self, length):
+        filename = 'indices-{}-{}.npy'.format(self.name, length)
+        try:        
+            indices = np.fromfile(filename, np.int64)
+            print('load fixed indices from {}'.format(filename))
+            print(indices)
+        except FileNotFoundError:
+            indices = np.arange(length)
+            np.random.shuffle(indices)
+            print('use sequence', indices.dtype)
+            print('create random indices for {}'.format(filename))
+            indices.tofile(filename)             
+        return indices
+        
     
     def n_classes(self):
         if self.name == Dataset.CIFAR10:
@@ -129,6 +143,7 @@ class Dataset():
                 #transforms.Grayscale(num_output_channels=3),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))        
+                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         else:
             print('activate data augmentation!')
@@ -139,12 +154,14 @@ class Dataset():
                 transforms.ColorJitter(brightness=0.2, saturation=0.2, hue=0.1),                
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))        
+                #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
     
     def test_transform(self):
         return transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))        
+            #transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
 
 

@@ -3,15 +3,13 @@ import torch
 
 from .tgdm_base import TGDMBase, Buffer
 
-class TGDM(TGDMBase):
+class TGDM_T1T2(TGDMBase):
     
     def hyper_zero_grad(self):
         self.reset_param_state_buffers([\
                     Buffer.partial_W_alpha,\
                     Buffer.partial_W_beta,\
-                    Buffer.partial_M_beta,\
                     Buffer.partial_W_lambda,\
-                    Buffer.partial_M_lambda,\
                 ])        
         
     def step(self, closure=None):
@@ -38,19 +36,13 @@ class TGDM(TGDMBase):
                 if regularization != 0:
                     d_p.add_(regularization, regulation_step)          
                 
-                # accumulate gradient lambda
-                #param_state[Buffer.partial_M_lambda].add_(momentum, regulation_step.clone().flatten().detach())
-                #param_state[Buffer.partial_W_lambda].add_(-lr, param_state[Buffer.partial_M_lambda].clone().detach())
-                # no alpha beta scale
-                param_state[Buffer.partial_M_lambda].add_(1.0, regulation_step.clone().flatten().detach())
-                param_state[Buffer.partial_W_lambda].add_(-1.0, param_state[Buffer.partial_M_lambda].clone().detach())
-                
-                # accumulate gradient beta
-                #param_state[Buffer.partial_M_beta].add_(1.0, d_p.clone().flatten().detach())
-                #param_state[Buffer.partial_W_beta].add_(-lr, param_state[Buffer.partial_M_beta].clone().detach())
-                # no alpha beta scale
-                param_state[Buffer.partial_M_beta].add_(1.0, d_p.clone().flatten().detach())
-                param_state[Buffer.partial_W_beta].add_(-1.0, param_state[Buffer.partial_M_beta].clone().detach())
+                # accumulate gradient lambda                
+                #param_state[Buffer.partial_W_lambda].add_(-lr*momentum, regulation_step.clone().flatten().detach())
+                param_state[Buffer.partial_W_lambda].add_(-1.0, regulation_step.clone().flatten().detach())
+                                
+                # accumulate gradient beta                
+                #param_state[Buffer.partial_W_beta].add_(-lr, d_p.clone().flatten().detach())                                
+                param_state[Buffer.partial_W_beta].add_(-1.0, d_p.clone().flatten().detach())                                
                 
                 # add momentum
                 if Buffer.gd_momentum not in param_state:
@@ -64,6 +56,3 @@ class TGDM(TGDMBase):
                 param_state[Buffer.partial_W_alpha].add_(-1.0, buf.clone().flatten().detach())
 
         return loss
-        
-    
-        

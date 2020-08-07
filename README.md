@@ -2,7 +2,7 @@
 (Code repositoy for the Master Thesis of Benjamin)
 
 ## Usage
-To use the experiments install the package localy:
+To use the experiments install the package locally:
 
 ```bash
 pip install -e .
@@ -60,6 +60,7 @@ for i in range(iters):
 	C.backward()
 	optimizer.step()
 	# single HO step:
+	optimizer.zero_grad()
 	E = ... # compute cost with validation data
 	E.backward()
 	optimizer.hyper_step()
@@ -85,6 +86,7 @@ for i in range(iters):
 		C.backward()
 		optimizer.step()
 	# followed by one HO step:
+	optimizer.zero_grad()
 	E = ... # compute cost with validation data
 	E.backward()
 	optimizer.hyper_step()

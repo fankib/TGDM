@@ -5,11 +5,14 @@ from .parametrized_value import ExpValue, SigmoidValue
 
 class Buffer():
     ''' Buffers in use for each parameter group '''    
+    # param_state buffers:
     partial_W_alpha = 'partial_W_alpha_buffer'    
     partial_W_beta = 'partial_W_beta_buffer'
     partial_M_beta = 'partial_M_beta_buffer'
     partial_W_lambda = 'partial_W_lambda_buffer'
     partial_M_lambda = 'partial_M_lambda_buffer'
+    partial_E_w = 'partial_E_w_buffer' # for HD
+    # group buffers:
     learning_rate = 'hyper_lr_buffer'
     momentum = 'hyper_momentum_buffer'
     regularization = 'hyper_regularization_buffer'
@@ -35,7 +38,7 @@ class TGDMBase(torch.optim.Optimizer):
             self.hlr_lr = self.hlr_momentum = self.hlr_regularization = hyper_learning_rate        
         
         self.regulation = regulation
-        self.logger = logger
+        self.logger = logger        
     
     def __setstate__(self, state):
         super().__setstate__(state)             
@@ -64,17 +67,17 @@ class TGDMBase(torch.optim.Optimizer):
             parameter_regularization = group[Buffer.regularization]
         return parameter_regularization.get_value()
     
-    def hyper_zero_grad(self):
+    def reset_param_state_buffers(self, buffers):
+        ''' inits the param state buffers with 0s '''
         for group in self.param_groups:            
             for p in group['params']:
-                param_state = self.state[p]
+                param_state = self.state[p]     
+                for buffer in buffers:
+                    param_state[buffer] = torch.zeros_like(p.flatten())                
                 
-                param_state[Buffer.partial_W_alpha] = torch.zeros_like(p.flatten())
-                param_state[Buffer.partial_W_beta] = torch.zeros_like(p.flatten())
-                param_state[Buffer.partial_M_beta] = torch.zeros_like(p.flatten())
-                param_state[Buffer.partial_W_lambda] = torch.zeros_like(p.flatten())
-                param_state[Buffer.partial_M_lambda] = torch.zeros_like(p.flatten())  
-            
+    def hyper_zero_grad(self):
+        pass
+    
     def step(self, closure=None):
         pass
     
@@ -137,12 +140,13 @@ class TGDMBase(torch.optim.Optimizer):
                     'regularization': group[Buffer.regularization].get_value(),\
                     })
             
-    def hyper_momentum(self, group, name, step, beta=0.9):
+    def hyper_momentum(self, group, name, step, beta=0.5):
         if name not in group:
-            buf = group[name] = step.clone()
+            buf = group[name] = step.clone().mul_(1.-beta)
             return buf        
         buf = group[name]
-        buf.add_(beta, step)
+        buf.mul_(beta)
+        buf.add_(1.-beta, step)
         return buf
     
     
