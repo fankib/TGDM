@@ -187,7 +187,7 @@ class Logger():
     def log(self, ord_dict):
         if self.log_wandb:
             wandb.log(ord_dict, step=self.current_step)        
-        print(ord_dict)
+        #print(ord_dict)
     
     def log_list_values(self, prefix, values):
         self.log({'{}_mean'.format(prefix): np.mean(values),\
@@ -308,6 +308,10 @@ class TGDMExperimentArgBuilder(ArgBuilder):
     
     def validation_iteration(self, arg):
         self.args['--validation_iteration'] = arg
+        return self
+    
+    def outer_iters(self, arg):
+        self.args['--outer_iters'] = arg
         return self
 
 class GpuDispatcher():

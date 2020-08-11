@@ -28,7 +28,135 @@ def main():
     
     # robustness scenarios
     #scenario_a_reuse(factory)
-    scenario_b_random_search(factory)
+    #scenario_b_random_search(factory)
+    
+    # after beta bugfix
+    cifar10_tgdm_bufix(factory)
+
+def cifar10_tgdm_bufix(factory):
+    gpu, r = factory.create(name())
+    defaults = TGDMExperimentArgBuilder()
+    defaults.iterations(15000).group(name())
+    
+    # network
+    defaults.architecture('resnet18')
+    #defaults.architecture('densenet121')
+    #defaults.architecture('convnet512')
+    defaults.dataset(Dataset.CIFAR10).batch_size(64).train_split(0.1).valid_split(0.11)
+    
+    # optimizer
+    #defaults.optimizer(Optimizer.TGDM)
+    #defaults.optimizer(Optimizer.TGDM_T1T2)    
+    
+    
+    # settings
+    
+    #tgdm
+    defaults.lr(0.03).momentum(0.5).regularization(0.1)    
+
+    # densenet:
+    #defaults.hlr_lr(0.0001).hlr_momentum(0.001).hlr_regularization(0.01) # beta 0.7-0.9
+    
+    # to test (simple updates)
+    defaults.validation_iteration(100) # fix modulo 0
+    inner_iters = [5, 1]
+    outer_iters = [1]    
+    
+    # crazy updates:
+    defaults.validation_iteration(300) # fix modulo 0
+    inner_iters = [78, 78]
+    outer_iters = [1]
+    defaults.hlr_lr(0.001).hlr_momentum(0.001).hlr_regularization(0.001/10) #
+    
+    # add DA
+    defaults.data_augmentation(True)
+    
+    #regulations = ['L2', 'L1', 'noise']
+    regulations = ['L2']
+    defaults.regularization(0.1)    
+    optimizers = [Optimizer.TORCH_SGD]    
+    
+    for iters in inner_iters:
+        for outers in outer_iters:
+            for regulation in regulations:
+                for optimizer in optimizers:
+                    args = copy.deepcopy(defaults)
+                    args.gpu(gpu.next())
+                    args.inner_iters(iters)
+                    args.outer_iters(outers)
+                    args.regulation(regulation)
+                    args.optimizer(optimizer)
+                    
+                    # add validation to training for hd methods:
+                    #if optimizer in [Optimizer.TGDM_HD, Optimizer.TGDM_HDC]:
+                    #    print('add validation as training data! (HD-Variants)')
+                    #    args.train_split(args.args['--valid_split'])
+                    #    args.valid_split(args.args['--valid_split'] + 0.1)
+                    
+                    r.run(args.build())
+    r.wait()  
+
+def cifar10_tgdm_bugfix_convnet(factory):
+    gpu, r = factory.create(name())
+    defaults = TGDMExperimentArgBuilder()
+    defaults.iterations(15000).group(name())
+    
+    # network    
+    defaults.architecture('convnet512')
+    defaults.dataset(Dataset.CIFAR10).batch_size(64).train_split(0.1).valid_split(0.11)
+    
+    # optimizer
+    #defaults.optimizer(Optimizer.TGDM)
+    #defaults.optimizer(Optimizer.TGDM_T1T2)    
+    
+    # settings
+    
+    #tgdm
+    defaults.lr(0.03).momentum(0.5).regularization(0.1)    
+    
+    # convex sgd ?
+    defaults.hlr_lr(0.0001).hlr_momentum(0.0001).hlr_regularization(0.0001) #
+
+    # to test (simple updates)
+    defaults.validation_iteration(100)
+    inner_iters = [5, 1]
+    outer_iters = [1]    
+    
+    # crazy updates:
+    defaults.validation_iteration(300)
+    inner_iters = [78, 78]
+    outer_iters = [1]
+    defaults.hlr_lr(0.0001).hlr_momentum(0.0001).hlr_regularization(0.0001/10) #
+    
+    # add DA
+    defaults.data_augmentation(True)
+    
+    #regulations = ['L2', 'L1', 'noise']
+    regulations = ['L2']
+    #defaults.regularization(0.001)
+    #optimizers = [Optimizer.TGDM_HDC, Optimizer.TGDM_HDC]
+    optimizers = [Optimizer.TGDM]
+    #optimizers = [Optimizer.TGDM_T1T2, Optimizer.TGDM_T1T2]
+    
+    for iters in inner_iters:
+        for outers in outer_iters:
+            for regulation in regulations:
+                for optimizer in optimizers:
+                    args = copy.deepcopy(defaults)
+                    args.gpu(gpu.next())
+                    args.inner_iters(iters)
+                    args.outer_iters(outers)
+                    args.regulation(regulation)
+                    args.optimizer(optimizer)
+                    
+                    # add validation to training for hd methods:
+                    #if optimizer in [Optimizer.TGDM_HD, Optimizer.TGDM_HDC]:
+                    #    print('add validation as training data! (HD-Variants)')
+                    #    args.train_split(args.args['--valid_split'])
+                    #    args.valid_split(args.args['--valid_split'] + 0.1)
+                    
+                    r.run(args.build())
+    r.wait()
 
 def scenario_b_random_search(factory):
     ''' runs a large random search and tries to converge '''
@@ -72,11 +200,7 @@ def scenario_b_random_search(factory):
         r.run(args_sgd.build())
     
     # wait for it
-    r.wait()
-        
-        
-        
-    
+    r.wait()    
 
 def scenario_a_reuse(factory):
     ''' runs sgd and tgdm, reusing their 10% hyperparameters on 50% of the data '''
@@ -96,19 +220,22 @@ def scenario_a_reuse(factory):
     defaults.batch_size(64).train_split(0.5).valid_split(0.55) # use 50%
     defaults.validation_iteration(1000)
     
+    # data augmentation:
+    defaults.data_augmentation(True)
+    
     # tgdm
     args = copy.deepcopy(defaults)
     args.gpu(gpu.next())
     args.inner_iters(5).optimizer(Optimizer.TGDM).regulation('L2')
     args.lr(0.003).momentum(0.2).regularization(0.1)
-    args.hlr_lr(0.0002/10).hlr_momentum(0).hlr_regularization(0.00003/10)
+    defaults.hlr_lr(0.0001).hlr_momentum(0.0001).hlr_regularization(0.0001/10)
     r.run(args.build())
     
     #sgd
     args = copy.deepcopy(defaults)
     args.gpu(gpu.next())
     args.optimizer(Optimizer.TORCH_SGD).regulation('L2')
-    args.lr(0.003).momentum(0.4).regularization(0.1).lr_decay_iterations(3000)
+    args.lr(0.003).momentum(0.4).regularization(0.1).lr_decay_iterations(3000) # extend training time
     r.run(args.build())
     
     # wait for results
@@ -405,8 +532,8 @@ def cifar10_tgdm(factory):
     #defaults.hlr_lr(0.00001/10).hlr_momentum(0.0001).hlr_regularization(0.001) # beta 0.7-0.9, noise    
     #defaults.hlr_lr(0.00001).hlr_momentum(0.0001*0.03).hlr_regularization(0.01*0.03*0.5) # beta 0.7-0.9, no scale
     
-    # convex sgd
-    defaults.hlr_lr(0.0001).hlr_momentum(0.01*0.03/3).hlr_regularization(0.01*0.03*0.5) #
+    # convex sgd ?
+    defaults.hlr_lr(0.001/10).hlr_momentum(0.00001).hlr_regularization(0.000001) #
     
     #defaults.hlr_lr(0.0001).hlr_momentum(0.01*0.03/3).hlr_regularization(0.01*0.03*0.5) #works for 90 and 10%}
     
@@ -424,29 +551,33 @@ def cifar10_tgdm(factory):
     #defaults.hlr_lr(0.0001).hlr_momentum(0.001).hlr_regularization(0.01) # beta 0.7-0.9
     
     # to test
-    inner_iters = [5]    
+    defaults.validation_iteration(780) # fix modulo 0
+    inner_iters = [78*2*9, 78*4*9]
+    outer_iters = [9]    
     #regulations = ['L2', 'L1', 'noise']
     regulations = ['L2']
     #optimizers = [Optimizer.TGDM_HDC, Optimizer.TGDM_HDC]
-    optimizers = [Optimizer.TGDM, Optimizer.TGDM]
+    optimizers = [Optimizer.TGDM]
     #optimizers = [Optimizer.TGDM_T1T2, Optimizer.TGDM_T1T2]
     
     for iters in inner_iters:
-        for regulation in regulations:
-            for optimizer in optimizers:
-                args = copy.deepcopy(defaults)
-                args.gpu(gpu.next())
-                args.inner_iters(iters)
-                args.regulation(regulation)
-                args.optimizer(optimizer)
-                
-                # add validation to training for hd methods:
-                #if optimizer in [Optimizer.TGDM_HD, Optimizer.TGDM_HDC]:
-                #    print('add validation as training data! (HD-Variants)')
-                #    args.train_split(args.args['--valid_split'])
-                #    args.valid_split(args.args['--valid_split'] + 0.1)
-                
-                r.run(args.build())
+        for outers in outer_iters:
+            for regulation in regulations:
+                for optimizer in optimizers:
+                    args = copy.deepcopy(defaults)
+                    args.gpu(gpu.next())
+                    args.inner_iters(iters)
+                    args.outer_iters(outers)
+                    args.regulation(regulation)
+                    args.optimizer(optimizer)
+                    
+                    # add validation to training for hd methods:
+                    #if optimizer in [Optimizer.TGDM_HD, Optimizer.TGDM_HDC]:
+                    #    print('add validation as training data! (HD-Variants)')
+                    #    args.train_split(args.args['--valid_split'])
+                    #    args.valid_split(args.args['--valid_split'] + 0.1)
+                    
+                    r.run(args.build())
     r.wait()        
  
 
