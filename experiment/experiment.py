@@ -22,6 +22,7 @@ class Optimizer():
     TGDM_T1T2 = 'tgdm-t1t2'    
     TGDM = 'tgdm'
     TORCH_SGD = 'torch-sgd'
+    TORCH_SGD_DEC = 'torch-sgd-dec'
     TORCH_ADAM = 'torch-adam'
 
 class StopWatch():
@@ -304,6 +305,10 @@ class TGDMExperimentArgBuilder(ArgBuilder):
     
     def lr_decay_iterations(self, arg):
         self.args['--lr_decay_iterations'] = arg
+        return self
+    
+    def lr_decay(self, arg):
+        self.args['--lr_decay'] = arg
         return self
     
     def validation_iteration(self, arg):

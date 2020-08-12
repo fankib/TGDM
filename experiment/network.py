@@ -81,7 +81,7 @@ class ResnetClassifier(Classifier):
         super().__init__(n_classes, pretrained)        
         if pretrained:
             print('use pretrained network!')
-        elif architecture == 'resnet18':
+        if architecture == 'resnet18':
             self.resnet = torchvision.models.resnet18(pretrained=pretrained)
         elif architecture == 'resnet34':
             self.resnet = torchvision.models.resnet34(pretrained=pretrained)

@@ -11,7 +11,7 @@ from experiment import local_machine, Logger, Optimizer, StopWatch, ExperimentEv
 from dataset import Dataset
 from network import ResnetClassifier, DensetNetClassifier, ConvNetClassifier
 
-from tgdm import TGDM, TGDM_T1T2, TGDM_HD, TGDM_HDC, PYTORCH_SGD
+from tgdm import TGDM, TGDM_T1T2, TGDM_HD, TGDM_HDC, PYTORCH_SGD_STEP, PYTORCH_SGD_DEC
 from tgdm.regularization import RegularizationFactory
 from tgdm.tgdm_base import Buffer
 
@@ -48,6 +48,7 @@ parser.add_argument('--regularization', default=0.01, type=float, help='the init
 
 # classic lr decay (only torch-sgd)
 parser.add_argument('--lr_decay_iterations', default=1000, type=int, help='divide the learning rate by 10 after this amount of iterations')
+parser.add_argument('--lr_decay', default=0.99, type=float, help='multiply learning rate by this after each iteration')
 
 
 # parse!
@@ -86,9 +87,13 @@ defaults = {'hyper_learning_rate': [args.hlr_lr, args.hlr_momentum, args.hlr_reg
             'momentum': args.momentum,\
             'regularization': args.regularization}
 
-if args.optimizer == Optimizer.TORCH_SGD:
+if args.optimizer in [Optimizer.TORCH_SGD, Optimizer.TORCH_SGD_DEC]:
     ''' classic torch SGD with decaying learning rate '''
-    optimizer = PYTORCH_SGD(model.parameters(), defaults, regulation, logger, args.lr_decay_iterations)
+    
+    if args.optimizer == Optimizer.TORCH_SGD:
+        optimizer = PYTORCH_SGD_STEP(model.parameters(), defaults, regulation, logger, args.lr_decay_iterations)
+    elif args.optimizer == Optimizer.TORCH_SGD_DEC:
+        optimizer = PYTORCH_SGD_DEC(model.parameters(), defaults, regulation, logger, args.lr_decay)
     
     for i in range(args.iterations):
         
@@ -187,7 +192,7 @@ if args.optimizer == Optimizer.TGDM_T1T2:
 
 if args.optimizer == Optimizer.TGDM:
     ''' TGDM Loop '''
-    optimizer = TGDM(model.parameters(), defaults, regulation, logger, 1.0)
+    optimizer = TGDM(model.parameters(), defaults, regulation, logger)
     valid_iterator = None
     train_iterator = None
     valid_available = 0

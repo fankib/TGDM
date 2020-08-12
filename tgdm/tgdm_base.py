@@ -23,7 +23,7 @@ class TGDMBase(torch.optim.Optimizer):
         There is not yet support for different param groups.
     '''
     
-    def __init__(self, params, defaults, regulation, logger, inner_iters):        
+    def __init__(self, params, defaults, regulation, logger):        
         super().__init__(params, defaults)
         assert defaults['hyper_learning_rate'] is not None
         assert regulation is not None        
@@ -38,8 +38,7 @@ class TGDMBase(torch.optim.Optimizer):
             self.hlr_lr = self.hlr_momentum = self.hlr_regularization = hyper_learning_rate        
         
         self.regulation = regulation
-        self.logger = logger
-        self.inner_iters = inner_iters        
+        self.logger = logger        
     
     def __setstate__(self, state):
         super().__setstate__(state)             

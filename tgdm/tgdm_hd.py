@@ -63,18 +63,23 @@ class TGDM_HD(TGDMBase):
                 if regularization != 0:
                     d_p.add_(regularization, regulation_step)               
                 # accumulate gradient lambda                
-                #param_state[Buffer.partial_W_lambda].add_(-lr*momentum, regulation_step.clone().flatten().detach())
+                #param_state[Buffer.partial_W_lambda].add_(-lr, regulation_step.clone().flatten().detach())
                 param_state[Buffer.partial_W_lambda].add_(-1.0, regulation_step.clone().flatten().detach())
-                # accumulate gradient beta                
-                #param_state[Buffer.partial_W_beta].add_(-lr, d_p.clone().flatten().detach())                                
-                param_state[Buffer.partial_W_beta].add_(-1.0, d_p.clone().flatten().detach())
-                # add momentum
+                
+                # get momentum buffer
                 if Buffer.gd_momentum not in param_state:
                     buf = param_state[Buffer.gd_momentum] = torch.clone(d_p).detach()
                 else:
                     buf = param_state[Buffer.gd_momentum]                
+                
+                # accumulate gradient beta                
+                #param_state[Buffer.partial_W_beta].add_(-lr, buf.clone().flatten().detach())                                
+                param_state[Buffer.partial_W_beta].add_(-1.0, buf.clone().flatten().detach())
+                
+                # update momentum                
                 buf.mul_(momentum).add_(d_p)                
                 p.data.add_(-lr, buf)
+                
                 # accumulate gradient alpha
                 param_state[Buffer.partial_W_alpha].add_(-1.0, buf.clone().flatten().detach())
         return loss
@@ -100,7 +105,7 @@ class TGDM_HD(TGDMBase):
                 if regularization != 0:
                     d_p.add_(regularization, regulation_step)               
                 
-                # accumulate gradient E (before or after regularization)
+                # accumulate gradient E (after regularization)
                 param_state[Buffer.partial_E_w].add_(1.0, d_p.clone().flatten().detach())
                 
                 # add momentum

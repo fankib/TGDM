@@ -37,14 +37,12 @@ class TGDM(TGDMBase):
                 regulation_step = self.regulation.step(p.data)
                 if regularization != 0:
                     d_p.add_(regularization, regulation_step)          
-                
-                factor = 1./self.inner_iters
-                
+                                
                 # accumulate gradient lambda
                 param_state[Buffer.partial_M_lambda].mul_(momentum).add_(regulation_step.clone().flatten().detach())
                 #param_state[Buffer.partial_W_lambda].add_(-lr, param_state[Buffer.partial_M_lambda].clone().detach())
                 # no alpha beta scale
-                param_state[Buffer.partial_W_lambda].add_(-factor, param_state[Buffer.partial_M_lambda].clone().detach())
+                param_state[Buffer.partial_W_lambda].add_(-1.0, param_state[Buffer.partial_M_lambda].clone().detach())
                 
                 # get momentum buffer
                 if Buffer.gd_momentum not in param_state:
@@ -56,14 +54,14 @@ class TGDM(TGDMBase):
                 param_state[Buffer.partial_M_beta].mul_(momentum).add_(1.0, buf.clone().flatten().detach())
                 #param_state[Buffer.partial_W_beta].add_(-lr, param_state[Buffer.partial_M_beta].clone().detach())
                 # no alpha beta scale
-                param_state[Buffer.partial_W_beta].add_(-factor, param_state[Buffer.partial_M_beta].clone().detach())
+                param_state[Buffer.partial_W_beta].add_(-1.0, param_state[Buffer.partial_M_beta].clone().detach())
                 
                 # udpate momentum
                 buf.mul_(momentum).add_(d_p)                
                 p.data.add_(-lr, buf)
                 
                 # accumulate gradient alpha
-                param_state[Buffer.partial_W_alpha].add_(-factor, buf.clone().flatten().detach())
+                param_state[Buffer.partial_W_alpha].add_(-1.0, buf.clone().flatten().detach())
 
         return loss
         
