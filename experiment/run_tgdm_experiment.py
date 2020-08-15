@@ -13,32 +13,221 @@ def main():
     concurrent_tasks = 1 if local_machine() else 2
     factory = ExperimentFactory(concurrent_tasks, 'tgdm_experiment.py')
         
-    # experiments
-    #cifar10_tgdm(factory)    
+    # Enable the experiments you like to run
     
-    # gridsearch learning rates
-    #cifar10_sgd_gs(factory)
-    #cifar10_tgdm_hdc_gs_learningrates(factory) # heavy overfitting    
-    
-    # gridsearch learning rates:
-    #cifar10_tgdm_gs_lr(factory)
-    
-    # estimate params:
-    #find_lr_reg_momentum(factory)
-    
+    # roughly estimated params
+    cifar10_tgdm(factory)    
+        
     # robustness scenarios
     #scenario_a_reuse(factory)
     #scenario_b_random_search(factory)
     
     # after beta bugfix
-    #cifar10_tgdm_bufix(factory)
+    #cifar10_tgdm_bugfix(factory)
     #birds_tgdm(factory)
     
     # td vs t1t2 vs tgdm
-    cifar10_tgdm_hd_t1t2_rerun(factory)
+    #cifar10_tgdm_hd_t1t2_rerun(factory)
     
     # robustness scenarion + random search
     #scenario_b_random_search_cifar10_10(factory)
+    
+    # scenario "hp reuse":
+    #cifar10_scenario_hp_reuse(factory)
+    
+    # ablation studies
+    #cifar10_ablation_lr(factory)
+    #cifar10_ablation_hlr_alpha_hlr_beta(factory)
+
+def cifar10_ablation_hlr_alpha_hlr_beta(factory):
+    ''' runs grid search on hlr_alpha and hlr_beta '''    
+    gpu, r = factory.create(name())
+    defaults = TGDMExperimentArgBuilder()
+    defaults.iterations(7000).group(name())
+    
+    # dataset settings
+    defaults.architecture('resnet18')
+    defaults.dataset(Dataset.CIFAR10)
+    defaults.data_augmentation(True)
+    defaults.batch_size(64).train_split(0.1).valid_split(0.11)    
+    defaults.validation_iteration(300)
+    
+    # initial hyperparams
+    defaults.lr(0.03).momentum(0.5).regularization(0.1)        
+    
+    # tgdm
+    defaults_tgdm = copy.deepcopy(defaults)
+    defaults_tgdm.optimizer(Optimizer.TGDM).regulation('L2')
+    defaults_tgdm.hlr_regularization(0.0)
+    defaults_tgdm.outer_iters(1).inner_iters(78)    
+    
+    hlr = 0.001
+    #hlr_alphas = [hlr, hlr*5, hlr/5, hlr*10]
+    #hlr_betas = [hlr, hlr*5, hlr/5, hlr*10, hlr/10]
+    hlr_alphas = [hlr*2, hlr/2]
+    hlr_betas = [hlr*2, hlr/2]
+    #missings = [(hlr*2, hlr/5), (hlr*2, hlr), (hlr*2, hlr*5),\
+    #            (hlr, hlr/2), (hlr, hlr*2),\
+    #            (hlr/2, hlr/5), (hlr/2, hlr), (hlr/2, hlr*5)]
+    missings = [(hlr*10, hlr/2), (hlr*10, hlr*2),\
+                (hlr*5, hlr/2), (hlr*5, hlr*2),\
+                (hlr*2, hlr/10), (hlr*2, hlr*10),\
+                (hlr/2, hlr/10), (hlr/2, hlr*10),\
+                (hlr/5, hlr/2), (hlr/5, hlr*2)]
+    
+    for hlr_alpha, hlr_beta in missings:    
+    #for hlr_alpha in hlr_alphas:
+    #    for hlr_beta in hlr_betas:
+    
+        # run tgdm 78
+        args_tgdm = copy.deepcopy(defaults_tgdm)
+        args_tgdm.gpu(gpu.next())        
+        args_tgdm.hlr_lr(hlr_alpha).hlr_momentum(hlr_beta)
+        r.run(args_tgdm.build())
+    
+    # wait for it
+    r.wait()      
+
+def cifar10_ablation_lr(factory):
+    ''' runs HO with lr only '''
+    gpu, r = factory.create(name())
+    defaults = TGDMExperimentArgBuilder()
+    defaults.iterations(7000).group(name())
+    
+    # dataset settings
+    defaults.architecture('resnet18')
+    defaults.dataset(Dataset.CIFAR10)
+    defaults.data_augmentation(True)
+    defaults.batch_size(64).train_split(0.1).valid_split(0.11)    
+    defaults.validation_iteration(100)
+    
+    # initial hyperparams
+    defaults.lr(0.03).momentum(0.5).regularization(0.1)        
+    
+    # tgdm
+    defaults_tgdm = copy.deepcopy(defaults)
+    defaults_tgdm.optimizer(Optimizer.TGDM).regulation('L2')
+    defaults_tgdm.hlr_lr(0.002).hlr_momentum(0.0).hlr_regularization(0.0)
+    
+    # hdc
+    defaults_hdc = copy.deepcopy(defaults)    
+    defaults_hdc.optimizer(Optimizer.TGDM_HDC).regulation('L2')
+    defaults_hdc.hlr_lr(0.001).hlr_momentum(0.0).hlr_regularization(0.0)    
+    
+    # t1t2
+    defaults_t1t2 = copy.deepcopy(defaults)    
+    defaults_t1t2.optimizer(Optimizer.TGDM_T1T2).regulation('L2')
+    defaults_t1t2.hlr_lr(0.0002).hlr_momentum(0.0).hlr_regularization(0.0)    
+    
+    for i in range(10):
+    
+        # run tgdm 78
+        args_tgdm = copy.deepcopy(defaults_tgdm)
+        args_tgdm.gpu(gpu.next())    
+        args_tgdm.outer_iters(1).inner_iters(78)        
+        r.run(args_tgdm.build())
+        
+        # run tgdm 5
+        args_tgdm = copy.deepcopy(defaults_tgdm)
+        args_tgdm.gpu(gpu.next())
+        args_tgdm.hlr_lr(0.0002).hlr_momentum(0.0).hlr_regularization(0.0)    
+        args_tgdm.outer_iters(1).inner_iters(5)
+        r.run(args_tgdm.build())
+
+        # run hdc
+        args_hdc = copy.deepcopy(defaults_hdc)
+        args_hdc.gpu(gpu.next())    
+        r.run(args_hdc.build())
+        
+        # run t1t2    
+        args_t1t2 = copy.deepcopy(defaults_t1t2)
+        args_t1t2.gpu(gpu.next())    
+        r.run(args_t1t2.build()) 
+    
+    # wait for it
+    r.wait()   
+
+def cifar10_scenario_hp_reuse(factory):
+    ''' runs a large random search and tries to converge '''
+    gpu, r = factory.create(name())
+    
+    for x in [1, 2, 5, 9]:    
+    
+        defaults = TGDMExperimentArgBuilder()
+        defaults.iterations(7000*x).group(name())
+        
+        # dataset settings
+        defaults.architecture('resnet18')
+        defaults.dataset(Dataset.CIFAR10)
+        defaults.data_augmentation(True)
+        defaults.batch_size(64).train_split(0.1*x).valid_split(0.11*x)    
+        defaults.validation_iteration(300*x)
+        
+        # initial hyperparams
+        defaults.lr(0.03).momentum(0.5).regularization(0.1)        
+        
+        # tgdm
+        defaults_tgdm = copy.deepcopy(defaults)
+        defaults_tgdm.optimizer(Optimizer.TGDM).regulation('L2')
+        defaults_tgdm.hlr_lr(0.001).hlr_momentum(0.001).hlr_regularization(0.0001) # default for TGDM-78
+                
+        # hdc
+        defaults_hdc = copy.deepcopy(defaults)    
+        defaults_hdc.optimizer(Optimizer.TGDM_HDC).regulation('L2')
+        defaults_hdc.hlr_lr(0.001/x).hlr_momentum(0.001/x).hlr_regularization(0.0001/x)    
+        
+        # t1t2
+        defaults_t1t2 = copy.deepcopy(defaults)    
+        defaults_t1t2.optimizer(Optimizer.TGDM_T1T2).regulation('L2')
+        defaults_t1t2.hlr_lr(0.0001/x).hlr_momentum(0.0001/x).hlr_regularization(0.0001/x)    
+        
+        # sgd
+        defaults_sgd = copy.deepcopy(defaults)
+        defaults_sgd.optimizer(Optimizer.TORCH_SGD).regulation('L2')
+        defaults_sgd.lr(0.0324).momentum(0.25).regularization(0.06566).lr_decay_iterations(2070)
+        defaults_sgd.lr_decay_iterations(2070*x)
+        
+        # sgd_dec
+        defaults_sgd_dec = copy.deepcopy(defaults)
+        defaults_sgd_dec.optimizer(Optimizer.TORCH_SGD_DEC).regulation('L2')
+        defaults_sgd_dec.lr(0.0728).momentum(0.16).regularization(0.07181).lr_decay(0.9970)
+        defaults_sgd_dec.lr_decay(0.997**(1./x))        
+
+        # run hdc
+        args_hdc = copy.deepcopy(defaults_hdc)
+        args_hdc.gpu(gpu.next())    
+        r.run(args_hdc.build())
+    
+        # run tgdm 78
+        args_tgdm = copy.deepcopy(defaults_tgdm)
+        args_tgdm.gpu(gpu.next())    
+        args_tgdm.outer_iters(1).inner_iters(78*x)
+        r.run(args_tgdm.build())
+        
+        # run tgdm 5
+        args_tgdm = copy.deepcopy(defaults_tgdm)
+        args_tgdm.gpu(gpu.next())
+        args_tgdm.hlr_lr(0.0001/x).hlr_momentum(0.0001/x).hlr_regularization(0.0001/x)    
+        args_tgdm.outer_iters(1).inner_iters(5)
+        r.run(args_tgdm.build())
+        
+        # run t1t2    
+        args_t1t2 = copy.deepcopy(defaults_t1t2)
+        args_t1t2.gpu(gpu.next())    
+        r.run(args_t1t2.build())        
+                
+        # run sgd*
+        args_sgd = copy.deepcopy(defaults_sgd)
+        args_sgd.gpu(gpu.next())        
+        r.run(args_sgd.build())
+        
+        # run sgd_dec*
+        args_sgd_dec = copy.deepcopy(defaults_sgd_dec)
+        args_sgd_dec.gpu(gpu.next())        
+        r.run(args_sgd_dec.build())
+    
+    # wait for it
+    r.wait() 
 
 def scenario_b_random_search_cifar10_10(factory):
     ''' runs a large random search and tries to converge '''
@@ -55,7 +244,7 @@ def scenario_b_random_search_cifar10_10(factory):
     
     # tgdm
     defaults_tgdm = copy.deepcopy(defaults)
-    defaults_tgdm.inner_iters(39).optimizer(Optimizer.TGDM).regulation('L2')
+    defaults_tgdm.inner_iters(39).optimizer(Optimizer.TGDM).regulation('L2') # use worst TGDM
     defaults_tgdm.hlr_lr(0.001).hlr_momentum(0.001).hlr_regularization(0.0001)
     
     # sgd_step
@@ -145,39 +334,38 @@ def cifar10_tgdm_hd_t1t2_rerun(factory):
     defaults_sgd_dec.optimizer(Optimizer.TORCH_SGD_DEC).regulation('L2')
     defaults_sgd_dec.lr_decay(0.997)    
     
-    for i in range(10):   
-        
+    for i in range(10):        
         
         # run sgd*
         args_sgd = copy.deepcopy(defaults_sgd)
         args_sgd.gpu(gpu.next())
         args_sgd.lr(0.0324).momentum(0.25).regularization(0.06566).lr_decay_iterations(2070)
-        r.run(args_sgd.build())
+        #r.run(args_sgd.build())
         
         # run sgd_dec*
         args_sgd_dec = copy.deepcopy(defaults_sgd_dec)
         args_sgd_dec.gpu(gpu.next())
         args_sgd_dec.lr(0.0728).momentum(0.16).regularization(0.07181).lr_decay(0.9970)
-        r.run(args_sgd_dec.build())
+        #r.run(args_sgd_dec.build())
     
-        # run tgdm 72
+        # run tgdm 78
         args_tgdm = copy.deepcopy(defaults_tgdm)
         args_tgdm.gpu(gpu.next())    
-        args_tgdm.outer_iters(1).inner_iters(72)
+        args_tgdm.outer_iters(1).inner_iters(78)
         r.run(args_tgdm.build())
         
         # run tgdm 39
         args_tgdm = copy.deepcopy(defaults_tgdm)
         args_tgdm.gpu(gpu.next())
         args_tgdm.outer_iters(1).inner_iters(39)
-        r.run(args_tgdm.build())
+        #r.run(args_tgdm.build())
         
         # run tgdm 5
         args_tgdm = copy.deepcopy(defaults_tgdm)
         args_tgdm.gpu(gpu.next())
         args_tgdm.hlr_lr(0.0001).hlr_momentum(0.0001).hlr_regularization(0.0001)    
         args_tgdm.outer_iters(1).inner_iters(5)
-        r.run(args_tgdm.build())
+        #r.run(args_tgdm.build())
         
         # run hd
         #args_hd = copy.deepcopy(defaults_hd)
@@ -187,7 +375,7 @@ def cifar10_tgdm_hd_t1t2_rerun(factory):
         # run hdc
         args_hdc = copy.deepcopy(defaults_hdc)
         args_hdc.gpu(gpu.next())    
-        r.run(args_hdc.build())
+        #r.run(args_hdc.build())
         
         # run hdc*5
         #args_hdc = copy.deepcopy(defaults_hdc)
@@ -198,22 +386,22 @@ def cifar10_tgdm_hd_t1t2_rerun(factory):
         # run t1t2    
         args_t1t2 = copy.deepcopy(defaults_t1t2)
         args_t1t2.gpu(gpu.next())    
-        r.run(args_t1t2.build())
+        #r.run(args_t1t2.build())
         
         # run sgd
         args_sgd = copy.deepcopy(defaults_sgd)
         args_sgd.gpu(gpu.next())        
-        r.run(args_sgd.build())
+        #r.run(args_sgd.build())
         
         # run sgd_dec
         args_sgd_dec = copy.deepcopy(defaults_sgd_dec)
         args_sgd_dec.gpu(gpu.next())        
-        r.run(args_sgd_dec.build())    
+        #r.run(args_sgd_dec.build())    
     
     # wait for it
     r.wait() 
 
-def cifar10_tgdm_bufix(factory):
+def cifar10_tgdm_bugfix(factory):
     gpu, r = factory.create(name())
     defaults = TGDMExperimentArgBuilder()
     defaults.iterations(15000).group(name())
@@ -416,266 +604,9 @@ def scenario_a_reuse(factory):
     # wait for results
     r.wait()    
 
-def find_lr_reg_momentum(factory):
-    ''' Does a grid search in order to find best initial lr, momentum, regularization '''
-
-    gpu, r = factory.create(name())
-    defaults = TGDMExperimentArgBuilder()
-    defaults.iterations(12000).group(name())
-    
-    # network
-    #defaults.architecture('resnet18')
-    #defaults.architecture('densenet121')
-    defaults.architecture('convnet512') 
-    
-    # dataset
-    defaults.dataset(Dataset.CIFAR10)    
-    defaults.batch_size(64).train_split(0.1).valid_split(0.11)
-    
-    # optimizer
-    #defaults.inner_iters(5).optimizer(Optimizer.TGDM).regulation('L2')
-    defaults.optimizer(Optimizer.TORCH_SGD).regulation('L2').lr_decay_iterations(3000)
-    
-    # so far estimated params:
-    #lr = 0.1
-    #regularization = 0.0003
-    #momentum = None
-    #momentums = [0.4, 0.2]
-    
-    # SGD
-    lr = 0.1
-    regularization = 0.001
-    #regularization = 0
-    momentum = None
-    momentums = [0.6, 0.2]
-    
-    
-    # search values:
-    lrs = [0.1, 0.05, 0.01, 0.005]    
-    #regularizations = [0.2, 0.1, 0.05, 0.01]
-    regularizations = [0.01, 0.005, 0.001, 0.0005]    
-    #momentums = [0.8, 0.6, 0.4, 0.2]
-    #momentums = [0.6, 0.2]
-    
-    # tune hlrs:
-    hlr_lr = 0.0005/10
-    hlr_regularization = 0.001/10
-    hlr_momentum = 0.0001/2 
-    
-    # log of converged values:
-    #### convnet-512, tgdm:
-    # lr=0.1, regularization=0.0003, momentum=0.2-0.4
-    # hlr_alpha 0.0005
-    # hlr_regularization = 0.001
-    # hlr_momentum = 0.00005
-    #### convnet-512, sgd:
-    # lr = 0.1, reg=0.001, momentum=0.2-0.6
-    
-    
-    if lr is None:
-        defaults.hlr_lr(hlr_lr).hlr_regularization(0).hlr_momentum(0)
-        defaults.regularization(0).momentum(0.5)        
-        find_lr(gpu, r, defaults, lrs)
-        return
-    if regularization is None:
-        defaults.hlr_lr(hlr_lr).hlr_regularization(hlr_regularization).hlr_momentum(0)        
-        defaults.lr(lr).momentum(0.5)        
-        find_regularization(gpu, r, defaults, regularizations)
-        return
-    if momentum is None:
-        defaults.hlr_lr(hlr_lr).hlr_regularization(hlr_regularization).hlr_momentum(hlr_momentum)        
-        defaults.lr(lr).regularization(regularization)       
-        find_momentum(gpu, r, defaults, momentums)
-        return
-
-def find_lr(gpu, r, defaults, lrs):
-    # build grid search:    
-    for lr in lrs:
-        args = copy.deepcopy(defaults)
-        args.gpu(gpu.next())
-        args.lr(lr)
-        r.run(args.build()) # go!
-    r.wait()
-def find_regularization(gpu, r, defaults, regularizations):
-    # build grid search:        
-    for regularization in regularizations:
-        args = copy.deepcopy(defaults)
-        args.gpu(gpu.next())
-        args.regularization(regularization)
-        r.run(args.build()) # go!
-    r.wait()
-def find_momentum(gpu, r, defaults, momentums):
-    # build grid search:        
-    for momentum in momentums:
-        args = copy.deepcopy(defaults)
-        args.gpu(gpu.next())
-        args.momentum(momentum)
-        r.run(args.build()) # go!
-    r.wait()
-    
-
-
-def cifar10_tgdm_gs_lr(factory):
-    ''' Does a grid search in order to find best initial lr, momentum, regularization '''
-       
-    gpu, r = factory.create(name())
-    defaults = TGDMExperimentArgBuilder()
-    defaults.iterations(2000).group(name())
-    
-    # network
-    defaults.architecture('resnet18')
-    #defaults.architecture('densenet121')
-    #defaults.architecture('convnet512')
-    
-    # dataset
-    defaults.dataset(Dataset.CIFAR10)    
-    defaults.batch_size(64).train_split(0.1).valid_split(0.11)
-    
-    # optimizer
-    defaults.inner_iters(5).optimizer(Optimizer.TGDM).regulation('L2')    
-    
-    
-    # default init
-    defaults.momentum(0.5)
-    
-    # phase 1: find learning rate
-    #hlr_lr = 0.0001
-    #hlr_regularization = 0    
-    #lrs = [0.1, 0.05, 0.01, 0.005]
-    #regularizations = [0]
-    
-    # phase 2: find regularization:
-    #hlr_lr = 0.0001
-    #lrs = [0.03]
-    #hlr_regularization = 0.001 # L2
-    #hlr_regularization = 0.000001 # L1
-    #hlr_regularization = 0.001 # noise    
-    #regularizations = [0.2, 0.1, 0.05, 0.01] #L2
-    #regularizations = [0.002, 0.001, 0.0005, 0.0001] #L1
-    regularizations = [0.002, 0.001, 0.0005, 0.0001] #noise
-    
-    # phase 3: find beta:
-    hlr_lr = 0.0001
-    lrs = [0.03]
-    hlr_regularization = 0.00001 # L2+beta  
-    regularizations = [0.1]
-    hlr_momentum = 0.0001
-    momentums = [0.8, 0.6, 0.4, 0.2]
-    
-    # set hlrs:
-    defaults.hlr_lr(hlr_lr).hlr_momentum(hlr_momentum).hlr_regularization(hlr_regularization)
-   
-    # build grid search:    
-    for lr in lrs:
-        for regularization in regularizations:
-            for momentum in momentums:
-                args = copy.deepcopy(defaults)
-                args.gpu(gpu.next())
-                args.lr(lr).regularization(regularization).momentum(momentum)
-                r.run(args.build()) # go!
-    r.wait()  
-
-def cifar10_sgd_gs(factory):
-    ''' Does a grid search with SGD and lr decays '''
-    
-    gpu, r = factory.create(name())
-    defaults = TGDMExperimentArgBuilder()
-    defaults.iterations(2000).group(name())
-    
-    # network
-    defaults.architecture('resnet18')
-    #defaults.architecture('densenet121')
-    #defaults.architecture('convnet512')
-    
-    # dataset
-    defaults.dataset(Dataset.CIFAR10)    
-    defaults.batch_size(64).train_split(0.1).valid_split(0.11)
-    
-    # optimizer
-    defaults.inner_iters(5).optimizer(Optimizer.TORCH_SGD).regulation('L2')    
-        
-    # phase 1
-    lr_decays = [1000, 500, 100]
-    lr = 0.03
-    lrs = [lr, lr*2, lr/2, lr*10, lr/10]    
-    momentums = [0.8, 0.5, 0.2]
-    regularization = 0.1
-    regularizations = [regularization, regularization*5, regularization/5]
-        
-    # build grid search:  
-    for lr_decay in lr_decays:
-        for lr in lrs:
-            for momentum in momentums:
-                for regularization in regularizations:
-                    args = copy.deepcopy(defaults)
-                    args.gpu(gpu.next())                
-                    args.lr(lr).momentum(momentum).regularization(regularization)
-                    args.lr_decay_iterations(lr_decay) ## aaha b
-                    r.run(args.build()) # go!
-    r.wait() 
-    
-
-def cifar10_tgdm_hdc_gs_learningrates(factory):
-    ''' Does a grid search in order to find best hyper learning rates '''
-       
-    gpu, r = factory.create(name())
-    defaults = TGDMExperimentArgBuilder()
-    defaults.iterations(10000).group(name())
-    
-    # network
-    defaults.architecture('resnet18')
-    #defaults.architecture('densenet121')
-    #defaults.architecture('convnet512')
-    
-    # dataset
-    defaults.dataset(Dataset.CIFAR10)    
-    defaults.batch_size(64).train_split(0.1).valid_split(0.11)
-    
-    # optimizer
-    defaults.inner_iters(5).optimizer(Optimizer.TGDM).regulation('L2')
-    #defaults.optimizer(Optimizer.TORCH_SGD).regulation('L2')    
-    
-    # default init
-    defaults.lr(0.03).momentum(0.4).regularization(0.1) # TGDM
-    #defaults.lr(0.03).momentum(0.2).regularization(0.1) # SGD
-    
-    # phase 1
-    hlr_lr = 0.0001
-    #hlr_lrs = [0.0001, hlr_lr*2, hlr_lr/2, hlr_lr*10, hlr_lr/10]    
-    hlr_lrs = [hlr_lr/2, hlr_lr/10]    
-    hlr_regularization = 0.00015
-    #hlr_regularizations = [hlr_regularization, hlr_regularization*5, hlr_regularization/5]
-    hlr_regularizations = [hlr_regularization/5, hlr_regularization/10]
-    
-    # phase 2
-    #hlr_lr = 0.0001
-    #hlr_lrs = [hlr_lr*1.5, hlr_lr/1.5]
-    #hlr_regularization = 0.003
-    #hlr_regularizations = [hlr_regularization*2, hlr_regularization/2]
-    
-    # phase 3
-    #hlr_lr = 0.0001
-    #hlr_lrs = [hlr_lr, hlr_lr*1.2, hlr_lr/1.2]
-    #hlr_regularization = 0.000015
-    #hlr_regularizations = [hlr_regularization, hlr_regularization*1.5, hlr_regularization/1.5]
-    
-    # build grid search:    
-    for hlr_lr in hlr_lrs:
-        for hlr_regularization in hlr_regularizations:
-            args = copy.deepcopy(defaults)
-            args.gpu(gpu.next())
-            args.hlr_lr(hlr_lr)
-            args.hlr_momentum(hlr_lr)
-            args.hlr_regularization(hlr_regularization)
-            #args.hlr_lr(hlr_lr*5)
-            #args.hlr_momentum(hlr_lr*15/3) # use same as lr, 66t1t2
-            #args.hlr_regularization(hlr_regularization*15)
-            r.run(args.build()) # go!
-    r.wait()    
-    
-    
-
 def cifar10_tgdm(factory):
+    ''' experiment with roughly estimated settings '''
+    
     gpu, r = factory.create(name())
     defaults = TGDMExperimentArgBuilder()
     defaults.iterations(20000).group(name())
@@ -711,9 +642,7 @@ def cifar10_tgdm(factory):
     defaults.hlr_lr(0.001/10).hlr_momentum(0.00001).hlr_regularization(0.000001) #
     
     #defaults.hlr_lr(0.0001).hlr_momentum(0.01*0.03/3).hlr_regularization(0.01*0.03*0.5) #works for 90 and 10%}
-    
-    
-    
+        
     # t1t2:
     #defaults.hlr_lr(0.00001/5.).hlr_momentum(0.0001/5.).hlr_regularization(0.01/5.) # beta 0.7-0.9
     

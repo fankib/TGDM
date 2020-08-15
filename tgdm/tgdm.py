@@ -41,7 +41,7 @@ class TGDM(TGDMBase):
                 # accumulate gradient lambda
                 param_state[Buffer.partial_M_lambda].mul_(momentum).add_(regulation_step.clone().flatten().detach())
                 #param_state[Buffer.partial_W_lambda].add_(-lr, param_state[Buffer.partial_M_lambda].clone().detach())
-                # no alpha beta scale
+                # no alpha scale
                 param_state[Buffer.partial_W_lambda].add_(-1.0, param_state[Buffer.partial_M_lambda].clone().detach())
                 
                 # get momentum buffer
@@ -53,7 +53,7 @@ class TGDM(TGDMBase):
                 # accumulate gradient beta
                 param_state[Buffer.partial_M_beta].mul_(momentum).add_(1.0, buf.clone().flatten().detach())
                 #param_state[Buffer.partial_W_beta].add_(-lr, param_state[Buffer.partial_M_beta].clone().detach())
-                # no alpha beta scale
+                # no alpha scale
                 param_state[Buffer.partial_W_beta].add_(-1.0, param_state[Buffer.partial_M_beta].clone().detach())
                 
                 # udpate momentum

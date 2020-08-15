@@ -15,10 +15,6 @@ from tgdm import TGDM, TGDM_T1T2, TGDM_HD, TGDM_HDC, PYTORCH_SGD_STEP, PYTORCH_S
 from tgdm.regularization import RegularizationFactory
 from tgdm.tgdm_base import Buffer
 
-''' fix seed '''
-#if local_machine():
-#    torch.manual_seed(1587039270)    
-
 ''' command line '''
 parser = argparse.ArgumentParser()
 parser.add_argument('--group', default='', type=str, help='Wandb group')
@@ -219,7 +215,7 @@ if args.optimizer == Optimizer.TGDM:
             optimizer.step()        
             logger.log({'train cost': C.item()})
             
-            # debug:
+            # exit on divergence:
             if np.isnan(C.item()):
                 sys.exit(1)
             
@@ -230,7 +226,7 @@ if args.optimizer == Optimizer.TGDM:
                 watch.resume()
             logger.log({'stopwatch': watch.current_seconds()})
         # HO step:
-        model.eval()
+        model.eval() # Important: do not estimate batch norm statistics from validation data
         Es = []
         for t in range(args.outer_iters):
                       
@@ -249,9 +245,4 @@ if args.optimizer == Optimizer.TGDM:
             Es.append(E.item())
         logger.log({'valid energy': np.mean(Es)})
         
-        # debug
-        print({'lr': optimizer.param_groups[0][Buffer.learning_rate].get_value(),\
-                    'momentum': optimizer.param_groups[0][Buffer.momentum].get_value(),\
-                    'regularization': optimizer.param_groups[0][Buffer.regularization].get_value(),\
-                    })
 # done!

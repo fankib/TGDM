@@ -11,7 +11,7 @@ import torch.nn.functional as f
 from torchvision import transforms
 
 def local_machine():
-    return getpass.getuser() == 'fsb1'
+    return getpass.getuser() == 'fsb1' # adapt to your environment
 
 class Optimizer():
     ''' Enumeration for the available optimizers
@@ -318,6 +318,72 @@ class TGDMExperimentArgBuilder(ArgBuilder):
     def outer_iters(self, arg):
         self.args['--outer_iters'] = arg
         return self
+
+class MartheExperimentArgBuilder(ArgBuilder):
+    
+    def architecture(self, arg):
+        self.args['--architecture'] = arg
+        return self
+    
+    def batch_size(self, arg):
+        self.args['--batch_size'] = arg
+        return self
+    
+    def iterations(self, arg):
+        self.args['--iterations'] = arg
+        return self
+    
+    def train_split(self, arg):
+        self.args['--train_split'] = arg
+        return self
+    
+    def valid_split(self, arg):
+        self.args['--valid_split'] = arg
+        return self
+    
+    def dataset(self, arg):
+        self.args['--dataset'] = arg
+        return self
+
+    def data_augmentation(self, arg):
+        self.args['--data_augmentation'] = arg
+        return self
+    
+    def lr(self, arg):
+        self.args['--lr'] = arg
+        return self
+    
+    def momentum(self, arg):
+        self.args['--momentum'] = arg
+        return self
+    
+    def regularization(self, arg):
+        self.args['--wd'] = arg
+        return self
+    
+    def validation_iteration(self, arg):
+        self.args['--validation_iteration'] = arg
+        return self       
+    
+    # marthe args
+    
+    def hyper_lr(self, arg):
+        self.args['--hyper-lr'] = arg
+        return self
+    
+    def alpha(self, arg):
+        self.args['--alpha'] = arg
+        return self
+    
+    def mu(self, arg):
+        self.args['--mu'] = arg
+        return self
+
+    def optimizer(self, arg):
+        self.args['--optimizer'] = arg
+        return self
+        
+    
 
 class GpuDispatcher():
     ''' alternates gpus '''
